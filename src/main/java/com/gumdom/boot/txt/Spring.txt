@@ -28,3 +28,30 @@ Bean管理;
     </property>
 </bean>
 //********************************************************************************************************************//
+
+
+//********************************************************************************************************************//
+
+<bean id = "boom" class = "**.**.*.*">
+    <property name="type" value="C4"></property>
+</bean>
+
+<bean id = "user2" class = "**.**.*.*">
+    <property name = "" value =""></property>
+    <property name = "" >
+        <bean id = "cat" class = "**.**.*.*">
+            <property name = "" value =""></property>
+        </bean>
+        <property name="cacheMap">
+            <map>
+                <entry>
+                    <key>
+                        <value>redisKey</value>
+                    </key>
+                    <ref bean="boom"></ref>
+                </entry>
+            </map>
+        </property>
+    </property>
+</bean>
+//********************************************************************************************************************//
