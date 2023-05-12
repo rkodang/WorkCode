@@ -8,8 +8,97 @@ public class CompletableFutureDemo {
     static List<MyRoom> roomList = Arrays.asList(new MyRoom("A"), new MyRoom("B"), new MyRoom("C"), new MyRoom("D"), new MyRoom("E"), new MyRoom("F"),new MyRoom("G"),new MyRoom("h"),new MyRoom("I"));
 
     public static void main(String[] args) throws Exception {
-        test4();
+       test7();
 
+    }
+
+    private static void test7() {
+        CompletableFuture<Integer> A = CompletableFuture.supplyAsync(() -> {
+            System.err.println("haha");
+            try {
+                TimeUnit.SECONDS.sleep(1);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+            return 10;
+        });
+
+        CompletableFuture<Integer> B = CompletableFuture.supplyAsync(() -> {
+            System.err.println("hihi");
+            try {
+                TimeUnit.SECONDS.sleep(2);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+            return 20;
+        });
+
+        CompletableFuture<Integer> C = A.thenCombine(B, (x, y) -> {
+            return x * 10 + y * 2;
+        });
+        System.err.println(C.join());
+    }
+
+    private static void test6() {
+        CompletableFuture<String> A = CompletableFuture.supplyAsync(() -> {
+            System.err.println("haha");
+            try {
+                TimeUnit.SECONDS.sleep(1);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+            return "A";
+        });
+
+        CompletableFuture<String> B = CompletableFuture.supplyAsync(() -> {
+            System.err.println("hihi");
+            try {
+                TimeUnit.SECONDS.sleep(2);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
+            }
+            return "B";
+        });
+        CompletableFuture<String> result = A.applyToEither(B, f -> {
+            int i = 10;
+            String abc = "hello";
+            return f + "quick";
+        });
+        System.err.println(result.join());
+
+    }
+
+    /**
+     * thenRun A执行完到B,B不需要A的结果
+     * thenAccept A执行完到B,B需要A的结果,但是B没有返回值
+     * thenApply A执行完到B,B需要A的结果,但是B有返回值
+     *
+     */
+    private static void test5() {
+        CompletableFuture<String> stringCompletableFuture = CompletableFuture.supplyAsync(() -> {
+            return "hello";
+        }).handle((f,e) -> {
+            try {
+                TimeUnit.SECONDS.sleep(2);
+            } catch (Exception e1) {
+                e1.printStackTrace();
+            }
+            return f + "then";
+        }).handle((f,e)->{
+            return f+"2";
+        }).whenComplete((f,e)->{
+            if (e!=null) {
+                System.err.println(f+"error");
+                e.printStackTrace();
+            }
+        });
+        System.err.println(stringCompletableFuture.join());
+        System.err.println("------------------------------");
+        System.err.println(CompletableFuture.supplyAsync(() -> "AAA").thenRun(() -> { }).join());
+        System.err.println("------------------------------");
+        System.err.println(CompletableFuture.supplyAsync(() -> "AAA").thenAccept(r-> System.err.println(r+"  "+"thenAccept")).join());
+        System.err.println("------------------------------");
+        System.err.println(CompletableFuture.supplyAsync(() -> "AAA").thenApply(r-> r+"thenApply").join());
     }
 
     private static void test4() {
