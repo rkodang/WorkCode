@@ -225,7 +225,20 @@ public interface IBasicExtension {
         return null;
     }
 
-    //TODO 有个StringKeyValue
+    /**
+     * 转成map
+     */
+    default Map<String,String> toMap(List<StringKeyValuePair> keyValuePairs){
+        if (keyValuePairs == null) {
+            return new HashMap<>();
+        }
+        Map<String,String> map = new HashMap<>(keyValuePairs.size());
+        for (StringKeyValuePair keyValuePair : keyValuePairs) {
+            map.put(keyValuePair.getKey(),keyValuePair.getValue());
+
+        }
+        return map;
+    }
 
     /**
      * 转成Map
