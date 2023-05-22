@@ -2,12 +2,16 @@ package com.gumdom.boot.infrastructure;
 
 import com.gumdom.boot.infrastructure.caching.DelegateAction2;
 import com.gumdom.boot.infrastructure.caching.DelegateFunction;
+import com.gumdom.boot.infrastructure.database.Page;
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.BeanUtils;
 import org.springframework.cglib.beans.BeanMap;
 
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
+import java.util.function.Function;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 
 public interface IBasicExtension {
 
@@ -228,13 +232,13 @@ public interface IBasicExtension {
     /**
      * 转成map
      */
-    default Map<String,String> toMap(List<StringKeyValuePair> keyValuePairs){
+    default Map<String, String> toMap(List<StringKeyValuePair> keyValuePairs) {
         if (keyValuePairs == null) {
             return new HashMap<>();
         }
-        Map<String,String> map = new HashMap<>(keyValuePairs.size());
+        Map<String, String> map = new HashMap<>(keyValuePairs.size());
         for (StringKeyValuePair keyValuePair : keyValuePairs) {
-            map.put(keyValuePair.getKey(),keyValuePair.getValue());
+            map.put(keyValuePair.getKey(), keyValuePair.getValue());
 
         }
         return map;
@@ -243,11 +247,247 @@ public interface IBasicExtension {
     /**
      * 转成Map
      */
-    default <T> Map toMap(T value){
+    default <T> Map toMap(T value) {
         if (value == null) {
             return new HashMap();
         }
         return new HashMap(BeanMap.create(value));
     }
 
+    /**
+     * 返回失败Map
+     */
+    default StringKeyObjectValueMap failMap() {
+        return this.failMap("");
+    }
+
+    default StringKeyObjectValueMap failMap(String message) {
+        StringKeyObjectValueMap map = new StringKeyObjectValueMap(1);
+        map.put("retCode", "0");
+        if (StringUtils.isEmpty(message)) {
+            return map;
+        }
+        map.put("retMsg", message);
+        return map;
+    }
+
+    default StringKeyObjectValueMap failMap(List<StringKeyValuePair> keyValuePairs) {
+        StringKeyObjectValueMap map = new StringKeyObjectValueMap(1);
+        map.put("retCode", "0");
+        if (keyValuePairs == null || keyValuePairs.size() <= 0) {
+            return map;
+        }
+        map.put("retMsg", keyValuePairs.get(0).getValue());
+        return map;
+    }
+
+    default StringKeyObjectValueMap failMap(String key, Object value) {
+        StringKeyObjectValueMap map = new StringKeyObjectValueMap(1);
+        map.put("retCode", "0");
+        if (StringUtils.isEmpty(key)) {
+            return map;
+        }
+        map.put(key, value);
+        return map;
+    }
+
+
+    default StringKeyObjectValueMap succMap() {
+        StringKeyObjectValueMap map = new StringKeyObjectValueMap(1);
+        map.put("retCode", "1");
+        return map;
+    }
+
+    default StringKeyObjectValueMap succMap(String message) {
+        StringKeyObjectValueMap map = new StringKeyObjectValueMap(1);
+        map.put("retCode", "1");
+        if (StringUtils.isEmpty(message)) {
+            return map;
+        }
+        map.put("retMsg", message);
+        return map;
+    }
+
+    default StringKeyObjectValueMap succMap(Object value) {
+
+        return this.succMap("retData", value);
+    }
+
+    default StringKeyObjectValueMap succMap(String key, Object value) {
+        StringKeyObjectValueMap map = new StringKeyObjectValueMap(1);
+        map.put("retCode", "1");
+        if (StringUtils.isEmpty(key)) {
+            return map;
+        }
+        map.put(key, value);
+        return map;
+    }
+
+    /**
+     * 数据转换Page入口
+     */
+    default <E, V> StringKeyObjectValueMap succMapPage(Page<E> pages, Function<? super E, ? extends V> mapper) {
+        StringKeyObjectValueMap map = new StringKeyObjectValueMap(4);
+        map.put("retCode", "1");
+        Page<V> V = this.changePage(pages, mapper);
+        map.put("retData", V);
+        return map;
+    }
+
+    /**
+     * 数据转换执行方法
+     */
+    default <E, V> Page<V> changePage(Page<E> pages, Function<? super E, ? extends V> mapper) {
+        if (pages == null || mapper == null) {
+            return new Page<>();
+        }
+
+        Page<V> data = new Page<>();
+        data.setTotalNum(pages.getTotalNum());
+        data.setBeginNum(pages.getBeginNum());
+        data.setFetchNum(pages.getFetchNum());
+        if (mapper != null) {
+            data.setList(pages.getList().stream().map(mapper).collect(Collectors.toList()));
+        }
+        return data;
+    }
+
+    /**
+     * list转成Map
+     */
+    default <E, V> StringKeyObjectValueMap succMapList(List<E> list, Function<? super E, ? extends V> mapper) {
+        StringKeyObjectValueMap map = new StringKeyObjectValueMap(1);
+        map.put("retCode", "1");
+        List<V> V = this.changeList(list, mapper);
+        map.put("retData", V);
+        return map;
+    }
+
+    default <E, V> List<V> changeList(List<E> list, Function<? super E, ? extends V> mapper) {
+        if (list == null || mapper == null) {
+            return new ArrayList<>();
+        }
+        List<V> data = list.stream().map(mapper).collect(Collectors.toList());
+        return data;
+    }
+
+    /**
+     * 单一值转换;
+     */
+    default <E, V> StringKeyObjectValueMap succMapValue(E value, Function<? super E, ? extends V> mapper) {
+        StringKeyObjectValueMap map = new StringKeyObjectValueMap(1);
+        map.put("retCode", "1");
+        V v = this.changeValue(value, mapper);
+        map.put("retData", v);
+        return map;
+    }
+
+    default <E, V> V changeValue(E value, Function<? super E, ? extends V> mapper) {
+        if (value == null || mapper == null) {
+            return null;
+        }
+        return mapper.apply(value);
+    }
+
+    default boolean isSucc(Map<String, Object> map) {
+        return map != null && map.containsKey("retCode") && this.isEquals("1", map.get("retCode"));
+    }
+
+    /**
+     * 是否相等的判断法则
+     */
+    default boolean isEquals(Object value1, Object value2) {
+        if (value1 == null && value2 == null) {
+            return true;
+        }
+        if (value1 == null || value2 == null) {
+            return false;
+        }
+        return value1.equals(value2);
+    }
+
+    /**
+     * 交个朋友
+     * 取两个都有的
+     */
+    default <T> List<T> overlap(List<T> one, List<T> two) {
+        if (this.isNullOrEmpty(one) || this.isNullOrEmpty(two)) {
+            return one == null ? two : one;
+        }
+        List<T> list = new ArrayList<>(one.size() <= two.size() ? one.size() : two.size());
+        Iterator<T> iterator = one.iterator();
+        while (iterator.hasNext()) {
+            T next = iterator.next();
+            if (two.contains(next)) {
+                list.add(next);
+                continue;
+            }
+        }
+        return list;
+    }
+
+    default boolean isNullOrEmpty(List<?> list) {
+        if (list == null || list.size() == 0 || list.isEmpty()) {
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * 差个朋友
+     * 只取two没有的东西呢
+     */
+    default <T> List<T> except(List<T> one, List<T> two) {
+        if (this.isNullOrEmpty(one) || this.isNullOrEmpty(two)) {
+            return one == null ? two : one;
+        }
+        List<T> list = new ArrayList<>(one.size());
+        for (T v : one) {
+            if (two.contains(v)) {
+                continue;
+            }
+            list.add(v);
+        }
+        return list;
+    }
+
+
+    /**
+     * 并个朋友
+     * 两个合体(去重)
+     */
+    default <T> List<T> union(List<T> one, List<T> two) {
+        return this.union(one, two, (o1, o2) -> o1 == o2);
+    }
+
+    default <T> List<T> union(List<T> one, List<T> two, IEquatabler<T, T> comparator) {
+        List<T> nList = one == null ? new ArrayList<>() : one;
+        List<T> mList = two == null ? new ArrayList<>() : two;
+        List<T> target = new ArrayList<>(nList.size() + mList.size());
+        for (T n : nList) {
+            if (target.size() > 0 && target.stream().anyMatch(f -> comparator.isEquals(n, f))) {
+                continue;
+            }
+            target.add(n);
+        }
+        for (T m : mList) {
+            if (target.size() > 0 && target.stream().anyMatch(f -> comparator.isEquals(m, f))) {
+                continue;
+            }
+            target.add(m);
+        }
+        return target;
+    }
+
+    /**
+     * 并个朋友(重复)
+     */
+    default <T> List<T> unionAll(List<T> one, List<T> two) {
+        List<T> nList = one == null ? new ArrayList<>() : one;
+        List<T> mList = two == null ? new ArrayList<>() : two;
+        List<T> target = new ArrayList<>(nList.size() + mList.size());
+        target.addAll(nList);
+        target.addAll(mList);
+        return target;
+    }
 }
