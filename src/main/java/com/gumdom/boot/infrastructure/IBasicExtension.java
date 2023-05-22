@@ -490,4 +490,27 @@ public interface IBasicExtension {
         target.addAll(mList);
         return target;
     }
+
+
+    default List<StringKeyValuePair> distinct(List<StringKeyValuePair> target) {
+        return this.distinct(target, StringKeyValuePair.newKeyValueEquatabler());
+    }
+
+    default <T> List<T> distinct(List<T> target, IEquatabler<T, T> equatable) {
+        if (this.isNullOrEmpty(target) || equatable == null) {
+            return new ArrayList<>();
+        }
+
+        List<T> targetList = new ArrayList<>(target.size());
+        target.forEach(e->{
+            if (targetList.stream().filter(t -> equatable.isEquals(t,e)).findFirst().isPresent()) {
+                return;
+            }
+            targetList.add(e);
+        });
+        return targetList;
+    }
+
+
+
 }

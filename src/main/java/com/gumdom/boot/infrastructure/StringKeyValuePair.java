@@ -26,6 +26,10 @@ public class StringKeyValuePair extends KeyValuePair<String,String> implements I
         return new KeyEquatabler();
     }
 
+    public static IEquatabler<StringKeyValuePair,StringKeyValuePair> newKeyValueEquatabler(){
+        return new KeyValueEquatabler();
+    }
+
 
     /**
      * key对比器
