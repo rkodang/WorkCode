@@ -502,8 +502,8 @@ public interface IBasicExtension {
         }
 
         List<T> targetList = new ArrayList<>(target.size());
-        target.forEach(e->{
-            if (targetList.stream().filter(t -> equatable.isEquals(t,e)).findFirst().isPresent()) {
+        target.forEach(e -> {
+            if (targetList.stream().filter(t -> equatable.isEquals(t, e)).findFirst().isPresent()) {
                 return;
             }
             targetList.add(e);
@@ -511,6 +511,242 @@ public interface IBasicExtension {
         return targetList;
     }
 
+    default <T, V> List<T> distinct(List<T> target, DelegateFunction<T, V> delegateFunction) {
+        if (this.isNullOrEmpty(target) || delegateFunction == null) {
+            return new ArrayList<>();
+        }
+        List<T> targetList = new ArrayList<>(target.size());
+        List<V> exists = new ArrayList<>(target.size());
+        target.forEach(e -> {
+            V value = delegateFunction.apply(e);
+            if (exists.contains(value)) {
+                return;
+            }
+            exists.add(value);
+            targetList.add(e);
+        });
+        return targetList;
+    }
+
+    default String concat(String... values) {
+        if (values == null || values.length <= 0) {
+            return "";
+        }
+        StringBuilder builder = new StringBuilder(values.length);
+        for (String value : values) {
+            if (value == null) {
+                continue;
+            }
+            builder.append(value);
+        }
+        return builder.toString();
+    }
+
+    default String concat(List<String> values) {
+        if (values == null || values.size() <= 0) {
+            return "";
+        }
+        StringBuilder builder = new StringBuilder(values.size());
+        for (String value : values) {
+            builder.append(value);
+        }
+        return builder.toString();
+    }
+
+    default String subString(String source, int begin) {
+        if (StringUtils.isEmpty(source)) {
+            return source;
+        }
+        return subString(source, begin, source.length());
+    }
+
+    default String subString(String source, int begin, int length) {
+        if (StringUtils.isEmpty(source)) {
+            return source;
+        }
+
+        if (begin < 0 || length <= 0 || source.length() <= begin) {
+            return "";
+        }
+        int ending = begin + length > source.length() ? source.length() : begin + length;
+        return source.substring(begin, ending);
+    }
+
+    default String subString(String source, int begin, char firstChar) {
+        if (StringUtils.isEmpty(source)) {
+            return source;
+        }
+        int i = source.indexOf(firstChar);
+        if (i <= 0 || begin > i) {
+            return source;
+        }
+        return this.subString(source, begin, i);
+    }
+
+    default String formatSingleLine(int tabNum, String srcString) {
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < tabNum; i++) {
+            sb.append("\t");
+        }
+        sb.append(srcString);
+        sb.append("\n");
+        return sb.toString();
+    }
+
+    default String firstToUpperCase(String key) {
+        if (StringUtils.isEmpty(key)) {
+            return key;
+        }
+        return key.substring(0, 1).toUpperCase(Locale.CHINA) + key.substring(1);
+    }
+
+    default String firstToLowerCase(String key) {
+        if (StringUtils.isEmpty(key)) {
+            return key;
+        }
+        return key.substring(0, 1).toLowerCase(Locale.CHINA) + key.substring(1);
+    }
+
+    default <T> T firstOrDefault(List<T> list) {
+        return list == null || list.isEmpty() ? null : list.get(0);
+    }
+
+    default <T> T firstOrDefault(List<T> list, DelegateFunction<T, Boolean> delegateFunction) {
+        if (list == null || list.isEmpty()) {
+            return null;
+        }
+        for (T t : list) {
+            Boolean value = delegateFunction.apply(t);
+            if (value != null && value) {
+                return t;
+            }
+        }
+        return null;
+    }
+
+    default <T, V> V firstValue(T target, DelegateFunction<T, V> valueDelegate) {
+        return target == null ? null : valueDelegate.apply(target);
+    }
+
+    default String firstNotNullNotEmpty(String... values) {
+        if (values == null) {
+            return null;
+        }
+        for (String value : values) {
+            if (this.isNotNullAndNotEmpty(value)) {
+                return value;
+            }
+        }
+        return null;
+    }
+
+    default boolean isNotNullAndNotEmpty(String... value) {
+        return isNullOrEmpty(value) ? false : true;
+    }
+
+    default boolean isNullOrEmpty(String... values) {
+        if (values == null || values.length == 0) {
+            return true;
+        }
+        for (String value : values) {
+            if (StringUtils.isEmpty(value)) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    default boolean isNullOrEmpty(Object... values) {
+        if (values == null || values.length == 0) {
+            return true;
+        }
+
+        for (Object obj : values) {
+            if (obj == null) {
+                return true;
+            }
+        }
+
+        for (Object obj : values) {
+            if (StringUtils.isEmpty(obj.toString())) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    default boolean isNullOrEmpty(Collection<?> list) {
+        if (list == null || list.size() == 0 || list.isEmpty()) {
+            return true;
+        }
+        return false;
+    }
+
+    default boolean isNullOrEmpty(Map map) {
+        if (map == null || map.size() == 0 || map.isEmpty()) {
+            return true;
+        }
+        return false;
+    }
+
+    default boolean isNotNullAndNotEmpty(Object... values) {
+        return isNullOrEmpty(values) ? false : true;
+    }
+
+    default boolean isNotNullAndNotEmpty(List<?> values) {
+        return isNullOrEmpty(values) ? false : true;
+    }
+
+    default String trim(String source) {
+        if (this.isNullOrEmpty(source)) {
+            return "";
+        }
+        return source.trim();
+    }
+
+    default String trim(String source, char[] car) {
+        if (this.isNullOrEmpty(source)) {
+            return "";
+        }
+        StringBuilder sb = new StringBuilder(source);
+        this.trimStart(sb, car);
+        this.trimEnd(sb, car);
+        return sb.toString();
+    }
+
+    default StringBuilder trimEnd(StringBuilder sb, char[] car){
+        do {
+            for (int i = 0; i < car.length; i++) {
+                if (sb.length() > 0 && sb.charAt(sb.length()-1) == car[i]) {
+                    sb.deleteCharAt(sb.length()-1);
+                    break;
+                }
+
+                if (i == car.length - 1) {
+                    return sb;
+                }
+            }
+        } while (sb.length() > 0);
+
+        return sb;
+    }
+
+    default StringBuilder trimStart(StringBuilder sb, char[] car) {
+        do {
+            for (int i = 0; i < car.length; i++) {
+                if (sb.length() > 0 && sb.charAt(0) == car[i]) {
+                    sb.deleteCharAt(0);
+                    break;
+                }
+
+                if (i == car.length - 1) {
+                    return sb;
+                }
+            }
+        } while (sb.length() > 0);
+
+        return sb;
+    }
 
 
 }
