@@ -12,8 +12,9 @@ import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
-public interface IBasicExtension {
+public interface IBasicExtension  {
 
     /**
      * 并行执行(没有任何返回值)
@@ -714,11 +715,11 @@ public interface IBasicExtension {
         return sb.toString();
     }
 
-    default StringBuilder trimEnd(StringBuilder sb, char[] car){
+    default StringBuilder trimEnd(StringBuilder sb, char[] car) {
         do {
             for (int i = 0; i < car.length; i++) {
-                if (sb.length() > 0 && sb.charAt(sb.length()-1) == car[i]) {
-                    sb.deleteCharAt(sb.length()-1);
+                if (sb.length() > 0 && sb.charAt(sb.length() - 1) == car[i]) {
+                    sb.deleteCharAt(sb.length() - 1);
                     break;
                 }
 
@@ -748,5 +749,64 @@ public interface IBasicExtension {
         return sb;
     }
 
+    default <T> List<List<T>> arraySplit(T[] source, int splitNum) {
+        if (source == null || source.length == 0) {
+            return new ArrayList<>(new ArrayList<>(0));
+        }
+        if (splitNum <= 0) {
+            List<List<T>> list = new ArrayList<>(1);
+            list.add(new ArrayList<>(Arrays.asList(source)));
+            return list;
+        }
+        int count = source.length / splitNum;
+        List<List<T>> list = new ArrayList<>(count + 1);
+        for (int i = 0; i < count; i++) {
+            list.add(new ArrayList<>(Arrays.asList(Arrays.copyOfRange(source, i * splitNum, (i + 1) * splitNum))));
+        }
+
+        if (source.length % splitNum != 0) {
+            list.add(new ArrayList<>(Arrays.asList(Arrays.copyOfRange(source, count * splitNum, source.length))));
+        }
+
+        return list;
+    }
+
+
+    default <T> List<List<T>> arraySplit(List<T> source, int splitNum) {
+        if (source == null || source.size() == 0) {
+            return new ArrayList<>(new ArrayList<>(0));
+        }
+        if (splitNum <= 0) {
+            List<List<T>> list = new ArrayList<>(1);
+            list.add(new ArrayList<>(source));
+            return list;
+        }
+
+        int count = source.size()
+                / splitNum;
+        List<List<T>> list = new ArrayList<>(count + 1);
+        for (int i = 0; i < count; i++) {
+            list.add(new ArrayList<>(source.subList(i * splitNum, (i + 1) * splitNum)));
+        }
+
+        if (source.size() % splitNum != 0) {
+            list.add(new ArrayList<>(source.subList(count * splitNum, source.size())));
+        }
+
+        return list;
+
+    }
+
+    default <T> List<T> toList(T... source) {
+        if (source == null || source.length <= 0) {
+            return new ArrayList<>();
+        }
+        return Stream.of(source).collect(Collectors.toList());
+    }
+
+
 
 }
+
+
+
