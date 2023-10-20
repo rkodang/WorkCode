@@ -1,12 +1,18 @@
 package com.gumdom.boot.infrastructure;
 
+import ch.qos.logback.core.util.FileUtil;
+import com.gumdom.boot.infrastructure.Entity.FileObject;
 import com.gumdom.boot.infrastructure.caching.DelegateAction2;
 import com.gumdom.boot.infrastructure.caching.DelegateFunction;
 import com.gumdom.boot.infrastructure.database.Page;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.tomcat.util.http.fileupload.FileItem;
 import org.springframework.beans.BeanUtils;
 import org.springframework.cglib.beans.BeanMap;
+import org.springframework.transaction.TransactionStatus;
 
+import java.io.File;
+import java.lang.reflect.Array;
 import java.util.*;
 import java.util.concurrent.CompletableFuture;
 import java.util.function.Function;
@@ -14,7 +20,7 @@ import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
-public interface IBasicExtension  {
+public interface IBasicExtension {
 
     /**
      * 并行执行(没有任何返回值)
@@ -782,8 +788,7 @@ public interface IBasicExtension  {
             return list;
         }
 
-        int count = source.size()
-                / splitNum;
+        int count = source.size() / splitNum;
         List<List<T>> list = new ArrayList<>(count + 1);
         for (int i = 0; i < count; i++) {
             list.add(new ArrayList<>(source.subList(i * splitNum, (i + 1) * splitNum)));
@@ -803,6 +808,96 @@ public interface IBasicExtension  {
         }
         return Stream.of(source).collect(Collectors.toList());
     }
+
+    /**
+     * 跳过 芜湖
+     */
+    default <T> List<T> arraySkin(T[] source, int begin, int size) {
+        List<T> list = new ArrayList<>(size);
+        for (int i = begin; i < source.length && i < begin + size; i++) {
+            list.add(source[i]);
+        }
+        return list;
+    }
+
+    default List<StringBuilder> stringSplit(StringBuilder builder, int splitNum) {
+        if (builder.length() <= splitNum) {
+            return Arrays.asList(builder);
+        }
+        int ceil = (int) Math.ceil(builder.length() / splitNum);
+        List<StringBuilder> list = new ArrayList<>(ceil);
+        for (int i = 0; i < ceil; i++) {
+            int begin = i * splitNum;
+            int end = (i + 1) * splitNum;
+            end = builder.length() <= end ? builder.length() : end;
+            StringBuilder sb = new StringBuilder(builder.subSequence(begin, end));
+            list.add(sb);
+        }
+        return list;
+    }
+
+    default <T> T[] toArray(T source, Class<?> targetType) {
+        if (source == null) {
+            return this.toArray(new ArrayList<>(0), targetType);
+        }
+        return this.toArray(Arrays.asList(source), targetType);
+    }
+
+    default <T> T[] toArray(List<T> source, Class<?> targetType) {
+        if (targetType == null) {
+            return null;
+        }
+        if (source == null || source.size() <= 0) {
+            return (T[]) Array.newInstance(targetType, 0);
+        }
+        T[] array = (T[]) Array.newInstance(targetType, source.size());
+        source.toArray(array);
+        return array;
+    }
+
+    default <R> R usingTranscation(boolean supportTransfer, DelegateFunction<Void, R> action) {
+        //开事务
+        TransactionStatus status;
+        try {
+            R r = action.apply(null);
+            //commit事务
+            return r;
+        } catch (Exception ex) {
+            //roll back事务
+        }
+        return null;
+    }
+
+    default <R> R usingTranscationWithThrow(boolean supportTransfer, DelegateFunction<Void, R> action) {
+        //开事务
+        TransactionStatus status;
+        try {
+            R r = action.apply(null);
+            //commit事务
+            return r;
+        } catch (Exception ex) {
+            //roll back事务
+            throw ex;
+        }
+    }
+
+    default List<File> getFileList(String path) {
+        if (this.isNullOrEmpty(path)) {
+            return new ArrayList<>();
+        }
+        File file = new File(path);
+        String[] names = file.list();
+        List<String> listFileName = new ArrayList<>();
+        if (names != null) {
+            String[] filePath = new String[names.length];
+            for (int i = 0; i < names.length; i++) {
+                filePath[i] = this.concat(path, File.separator, names[i]);
+            }
+            listFileName.addAll(Arrays.asList(filePath));
+        }
+        return listFileName.stream().map(t -> new File(t)).collect(Collectors.toList());
+    }
+
 
 
 
