@@ -3,6 +3,7 @@ package com.gumdom.boot.infrastructure.caching;
 import com.gumdom.boot.infrastructure.ICaching;
 import org.apache.commons.lang3.StringUtils;
 
+import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -221,5 +222,13 @@ public abstract class AbstMapCache implements ICaching {
         }
 
         return false;
+    }
+
+    public Map<String,Object> toMap(){
+        Map<String,Object> map = new HashMap<>(this.cache.size());
+        for (Map.Entry<String, MapCacheItem> keyValue : this.cache.entrySet()) {
+            map.put(keyValue.getKey(),keyValue.getValue().cacheObject);
+        }
+        return map;
     }
 }
