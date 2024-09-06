@@ -4,6 +4,8 @@ import org.apache.commons.lang3.StringUtils;
 
 import java.net.InetAddress;
 import java.net.UnknownHostException;
+import java.util.ArrayList;
+import java.util.List;
 
 public class CloudContainer {
 
@@ -93,6 +95,56 @@ public class CloudContainer {
         return 1;
     }
 
+    public int sortOnSlave(){
+        List<String> slaveList = new ArrayList<>();//从缓存中取数;
+        List<String> newSortList = new ArrayList<>();
+        for (int i = 1; i < slaveList.size(); i++) {
+            newSortList.add("SLAVE" + i);
+        }
+        List<String> newNameList = new ArrayList<>(newSortList.size());
+        for (int i = 1; i < slaveList.size(); i++) {
+            String slave = slaveList.get(i - 1);
+            if (newSortList.stream().anyMatch(t->t.equals(slave))) {
+                slaveList.remove(slave);
+                continue;
+            }
+            newNameList.add(slave);
+        }
+        //清除slave,重新插入newNameList作为slave
+        return 1;
+    }
 
+    public int decide(){
+        return this.decide(getHostName());
+    }
+
+    public int decide(String hostname){
+        if (StringUtils.isEmpty(hostname)) {
+            return 0;
+        }
+        //1.mapper执行清除Master节点的操作;
+        //2.master机变更为当前将以当前hostName的主机作为master机
+        return 1;
+    }
+
+    public int register(){
+        return this.register(getHostName());
+    }
+
+    public int register(String hostName){
+
+        //1.从缓存获取所有slave节点
+        //2.删除缓存内的所有slave节点'
+        //3.从数据库内重新查数据,若存在当前hostName的数据直接返回
+
+        //4.若hostName的主机是新增加的节点则尝试注册;
+
+        return this.tryRegister(hostName);
+    }
+
+    public int tryRegister(String hostName) {
+        //将数据注册到数据库
+        return 1;
+    }
 
 }
