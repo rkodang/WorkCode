@@ -1,0 +1,223 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTO Mapper 3.0 //EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="cmgm.srvdteam">
+
+
+    <insert id="insertSrvdTeamFromSrvdApp">
+        insert into cmgm_srvd_team(team,opt_date,side,molecule,denominator,score)
+        select team,opt_date,side,molecule,denominator,score from (
+            select team,opt_date,'all' as side ,sum (app_molecule) as molecule, sum (app_denominator) as denominator,
+            (case when sum (app_denominator) = 0 then 0 else  round (sum (app_molecule) / sum (app_denominator) ,2)end) as score
+            from (
+                select distinct  app_id, team,to_char(sysdate,'yyyy-MM-dd') as opt_date,
+                nvl((select srv_count + srv_cons_count + intl_srv_count + intl_srv_cons_count from cmgm_srvd_app v where v.app_id and v.opt_date = to_char(sysdate,'yyyy-MM-dd') and rownum  = 1),0) as app_molecule,
+                nvl((select srv_count + srv_cons_count + intl_srv_count + intl_srv_cons_count + intf_cons_count + intf_count from cmgm_srvd_app v where v.app_id and v.opt_date = to_char(sysdate,'yyyy-MM-dd') and rownum  = 1),0) as app_denominator
+                from damp.damp_app_info a
+                where exists (select 0 from sgpf_app_promote sap where sap.app_id  = a.app_id and sap.servization in ('true','newapp','wait'))
+                and team is not null
+                and a.app_status not in ('04')
+            )app
+            group by team , opt_date
+
+            union all
+
+             select team,opt_date,'new' as side ,sum (app_molecule) as molecule, sum (app_denominator) as denominator,
+            (case when sum (app_denominator) = 0 then 0 else  round (sum (app_molecule) / sum (app_denominator) ,2)end) as score
+            from (
+                select distinct  app_id, team,to_char(sysdate,'yyyy-MM-dd') as opt_date,
+                nvl((select srv_count + srv_cons_count + intl_srv_count + intl_srv_cons_count from cmgm_srvd_app v where v.app_id and v.opt_date = to_char(sysdate,'yyyy-MM-dd') and rownum  = 1),0) as app_molecule,
+                nvl((select srv_count + srv_cons_count + intl_srv_count + intl_srv_cons_count + intf_cons_count + intf_count from cmgm_srvd_app v where v.app_id and v.opt_date = to_char(sysdate,'yyyy-MM-dd') and rownum  = 1),0) as app_denominator
+                from damp.damp_app_info a
+                where exists (select 0 from sgpf_app_promote sap where sap.app_id  = a.app_id  and sap.remark = '新建应用' and sap.servization in ('true','newapp','wait'))
+                and team is not null
+                and a.app_status not in ('04')
+            )app
+            group by team , opt_date
+
+        ) re
+        where not exists (select 0 from cmgm_srvd_team t where t.team = re.team and t.opt_date = re.opt_date)
+
+    </insert>
+
+    <insert id="insertSrvdAppFromAppEvid">
+        <![CDATA[
+            insert into cmgm_srvd_app (app_id,team.opt_date,srv_count , intf_count,intl_srv_count,srv_cons_count, intf_cons_count,intl_srv_cons_count,molecule,denominator,score,srv_ratio,intf_ratio,intl_srv_ratio)
+            select
+            app_id,(select team from damp.damp_app_info ap where ap.app_id = tmp.app_id and rownum = 1) as team,opt_date,srv_count,intf_count,intl_srv_count,srv_cons_count,intf_cons_count,intl_srv_cons_count,molecule,denominator,
+(case when denominator =0 then 0 else round(molecule / denominator,2) end) as score,(case when denominator > 0 then trunc((srv_count + srv_cons_count ) /denominator ,2) else 0 end) as srv_ratio,(case when denominator > 0 then trunc((intf_count + intf_cons_count ) /denominator,2) else 0 end )as intf_ratio,
+(case when denominator >0 then 1-  (TRUNC((srv_count + srv_cons_count)/denominator,2) + trunc ((intf_count + intf_cons_count) / denominator , 2)) else 0 end) as intl_srv_ratio
+from (
+select app_id,opt_date,sum(case when v.side ='prvd'and v.obj_type = '5001'then 1 else 0 end) as srv_count,sum(case when v.side ='prvd'and v.obj_type = '5003'then 1 else 0 end) as intf_count,sum(case when v.side ='prvd' and v.obj_type ='5005'then 1 else 0 end)as intl_srv_count,sum(case when v.side ='cons' and v.obj_type ='5001'then 1 else 0 end) as srv_cons_count,sum(case when v.side ='cons' and v.obj_type = '5003' then 1 else 0 end)as intf_cons_count , sum(case when v.side ='cons'and v.obj_type = '5005'then 1 else 0 end)as intl_srv_cons_count,sum(case when v.obj_type ='5001'then 1 when v.obj_type ='5005' then 1 else 0 end) as molecule,nvl(sum(1),0)as denominator
+from cmgm_srvd_app_evid vwhere exists(select 0 from sgpf_app_promote sap where sap.app_id =v.app _id and sap.servization in ('true','newapp','wait')group by app id,opt_date order by app_id asc
+) tmp
+where not exists(select 0 from cmgm_srvd_app ap where ap.app_id = tmp.app_id and ap.opt_date = tmp.opt_date)
+
+        ]]>
+
+    </insert>
+
+    <insert id="insertAppEvidFromTmp">
+        insert into cmgm_srvd_app_evid (app id,obj_type,side,srv_code,opt_date)select app_id,obj_type,side,srv_code,opt_date from(
+            select
+            app_id,
+            obj_type
+            side,
+            srv_code
+            opt_date,
+            row_number()over(partition by app_id,obj_type,side,srv_code order by create time desc)rn from cmgm_srvd_app_evid_tmp) tmp
+            where tmp.rn=1
+            and not exists(select 0 from cmgm_srvd_app_evid v
+            where v.app_id = tmp.app_id
+            and v.opt_date = tmp.opt_date
+            and v.side = tmp.side
+            and v.obj_type = tmp.obj_type
+            and v.srv_code = tmp.srv_code)
+    </insert>
+
+    <insert id="insertAppEvidTmp">
+        <![CDATA[
+            insert into cmgm_srvd_app_evid_tmp (app_id,obj_type,side,srv_code,opt_date,create_time)
+            select appId,objType,side,srvcode,optDate,sysdate from(
+                select
+                s.prvd_id as appId
+                '5001' as objType,
+                'prvd' as side,
+                s.service_code as srvCode,
+                to_char(sysdate,'yyyy-MM-dd') as optDate,
+                '1' as srvd_state
+                from sgpf.sgpf_service_info s
+                where s.service_state in('2','3')
+
+                union all
+
+                select
+                s.prvd_id as appId
+                '5003' as objType,
+                'prvd' as side,
+                s.tran_code as srvCode,
+                to_char(sysdate,'yyyy-MM-dd') as optDate,
+                s.serviced_state as srvd_state
+                from sgpf.sgpf_interface_info s
+                where s.tran_state in('2','3')
+                and not exists(select 0 from sgpf_service_info srvc where srvc.service_code =s.service code and srvc.service_state in('2','3') and srvc.prvd_id = s.prvd_id)and not exists(select 0 from sgpf_service_info srvc
+                where srvc.tran_code = s.tran code
+                and srvc.service_state in('2','3')
+                and srvc.prvd_id = s.prvd_id)
+
+                union all
+
+                select
+                s.prvd _id as appId
+                '5005' as objType,
+                'prvd' as side,
+                s.internal_service_code as srvcode,
+                to_char(sysdate,'yyyy-MM-dd') as optDate,
+                s.serviced_state as srvd_state
+                from sgpf.sgpf_internal_service info s
+                where s.service_state in('2','3')
+                and not exists(select 0 from sgpf_service_info srvc
+                where srvc.service_code =s.service_code
+                AND S.SERVICE CODE IS NOT NULL
+                and srvc.service_state in('2','3')
+                and srvc.prvd _id= s.prvd_id)
+                and not exists(select 0 from sgpf_service_info srvc
+                where srvc.tran_code =s.internal_service_code
+                AND S.INTERNAL SERVICE CODE IS NOT NULL
+                and srvc.service_state in('2','3')
+                and srvc.prvd id = s.prvd_id)
+
+                union all
+
+                select
+                appId,
+                objTyper
+                side,
+                srvCode,
+                optDate,
+                sryd_state
+                from(
+                SELECT
+                s.system_id as appId,
+                (case when s.obj_type='1' then '5001' when s.ob_type ='2' then '5003' when s.obj_type ='3' then '5005'else null end) as objype,
+                'cons' as side,
+                nvl((case when s.obj_type='1' then (select service_code from sgpf_service_info sr where sr.id = s.service_id and rownum = 1)when s.obj_type ='2' then (select tran_code from sgpf_interface_info sr where sr.id = s.service_id and rownum = 1)when s.obj type ='3' then (select internal_service_code from sgpf_internal_service_ info sr where sr.id = s.service id and rownum = 1)else s.service_id end),s.service_id) as srvCode,to_char(sysdate,'yyyy-MM-dd') as optDate,
+                '1' as sryd_state,
+                s.service_invoke_state as invokestate,
+                s.service_invoke_type as invokeType
+                FROM(
+                SELEcT system_id,obj_type,service_id,service_invoke_state,service_invoke_type,rn FROM (
+                selects.system_id,s.obj_type,s.service_id,s.service_invoke_state,s.service_invoke_type,row_number()over(partition by service_id,system_id order by opt_date desc)rnfrom sgpf_service_invoke s
+                )inv where inv.rn=1 and inv.service invoke type = '1'AND EXISTS(select 1 from sgpf_service_info info WHERE info.ID = inv.service_id AND infO.SERVICE_STATE IN ('2','3')))s )
+
+                union all
+
+                select
+                appId,
+                objType,
+                side,
+                srvCode,
+                optDate,
+                srvd_state
+                from(
+                    SELECT
+                        s.system_id as appId,
+                        (case when s.obj_type='1' then '501' when s.obj_type ='2'then '5003' when s.obj type ='3' then '5005' else null end) as objType,
+                        'cons' as side,
+                        nvl((case when s.obj_type='1' then (select service_code from sgpf_service_info sr where sr.id = s.service_id and rownum = 1) when s.obj_type ='2' then (select tran_code from sgpf_interface_info sr where sr.id = s.service id and rownum = 1) when s.obi type ='3' then (select internal service code from sgpf internal service info sr where sr id = s.service id and rownum = 1)else s.service id end),s.service id) as srvCcode,
+                        to_char(sysdate,'yyyy-MM-dd') as optDate,
+                        '1' as srvd_state,
+                        s.service_invok_state as invokestate,
+                        s.service_invoke_type as invokeType
+                FROM (
+                    SELEcT system_id,obj_type,service_id,service_invoke_state,service_invoke_type,rn FROM (
+                        select
+                        s.system_id,s.obj_type,s.service_id,s.service_invoke_state,s.service_invoke_typerow_number()over(partition by service_id,system_id order by opt_date desc)rnfrom sgpf_service_invoke s
+                    )inv where inv.rn=1 and inv.service_invoke_type ='1'AND EXISTS(select 1 from sgpf_internal_service_info info WHERE info.ID = inv.service_id AND infO.SERVICE_STATE IN ('2','3') ) )s)
+
+
+                union all
+
+
+                select
+                appId,
+                objType
+                side,
+                srvCode
+                optDate,
+                sryd_state
+                from(
+                    SELECT
+                    s.system_id as appId,(case when s.obj_type='1' then '50@1' when s.obj_type ='2' then '5003' when s.obj type ='3' then '5005' else null end) as objType,'cons' as side,nvl((casewhen s.obj_type='1' then (select service_code from sgpf_service_info sr where sr.id = s.service_id and rownum = 1)when s.obj_type ='2' then (select tran_code from sgpf_interface_info sr where sr.id = s.service_id and rownum = 1)when s.obj type ='3' then (select internal_service_code from sgpf interal_service_info sr where sr.id = s.service id and rownum = 1)else s.service_id end),s.service_id) as srvCode,
+                    to_char(sysdate,'yyyy-MM-dd') as optDate,
+                    '1'as sryd_state,
+                    s.service_invoke_state as invokestate
+                    s.service_invoke_type as invokeType
+                FROM (
+                    SELECT system_id,obj_type,service_id,service_invoke_state,service_invoke_type,rn FROM (
+                    selects.system_id,s.obj_type,s.service_id,s.service_invoke_state,s.service_invoke_type.row_number()over(partition by service_id,system_id order by opt_date desc)rnfrom sgpf_service_invoke s
+                    )inv where inv.rn=1 and inv.service_invoke_type ='1' AND EXISTS(select 1 from sgpf_interface_info info WHERE info.ID = inv.service_id AND infO.TRAN_STATE IN ('2','3')))s ) ) re
+
+        ]]>
+
+    </insert>
+
+    <select id="selectCounter">
+
+        with counter(serviceCode,dataDate,faileRate,faileNum) as(
+            select serviceCode,dataDate,fialeRate,faileNum from sgpf_service_code where service_state in ('2','3')
+
+        ),
+        twoday(serviceCode,dataDate,failRate)as(
+            select serviceCode,dataDate,case when totalNum = 0 then null else trunc((totalNum - succNum) / totalNum,4) end totoalNum from SMC where prvdId = #{prvdId} and side = 'provider' and objType = '5001' and date = sysdate -2
+        ),
+        t2Num(serviceCode,point) as(
+            select c.serviceCode,trunc((c.failRate - t.failRate),4) point from counter c left join twoday t on c.serviceCode = t.serviceCode
+        )
+        select * from (
+            select distinct t.serviceCode srvCode,t.point as upDownDay from t2Num t left join counter c on c.serviceCode = t.serviceCode order By t.point desc nulls last
+        ) where rowNum &lt;=10
+
+    </select>
+
+
+</mapper>
