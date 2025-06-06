@@ -185,9 +185,9 @@ public abstract class AbstServiceStep implements IBasicServiceController, IBasic
             int m = (i + j) >>> 1;
             if (target < array[m]) {
                 j = m - 1;
-            } else if (target > array[m]) {
+            } else if (array[m] < target) {
                 i = m + 1;
-            }else {
+            } else {
                 return m;
             }
         }
