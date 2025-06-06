@@ -142,11 +142,11 @@ public abstract class AbstServiceStep implements IBasicServiceController, IBasic
     }
 
 
-    public String httpGet(String url){
-        return this.httpGet(url,false);
+    public String httpGet(String url) {
+        return this.httpGet(url, false);
     }
 
-    public String httpGet(String url,boolean ignoreSSL){
+    public String httpGet(String url, boolean ignoreSSL) {
         try (CloseableHttpClient httpClient = this.createHttpClient(ignoreSSL)) {
             HttpGet httpGet = new HttpGet(url);
             httpGet.addHeader("Accept", "*/*");
@@ -175,5 +175,23 @@ public abstract class AbstServiceStep implements IBasicServiceController, IBasic
     }
 
 
+    /**
+     * 二分查找
+     */
+    public static int binarySearchBasic(int[] array, int target) {
+        int i = 0;
+        int j = array.length - 1;
+        while (i <= j) {
+            int m = (i + j) >>> 1;
+            if (target < array[m]) {
+                j = m - 1;
+            } else if (target > array[m]) {
+                i = m + 1;
+            }else {
+                return m;
+            }
+        }
+        return -1;
+    }
 
 }
